@@ -1,0 +1,22 @@
+ext {
+    //Android
+    //androidBuildToolsVersion = "28.0.0"
+    androidMinSdkVersion = 14
+    androidTargetSdkVersion = 14
+    androidCompileSdkVersion = 28
+
+    //Libraries
+    supportV7Version = "28.0.0"
+    okhttpVersion = "3.10.0"
+    constraintLayoutVersion = "1.1.0"
+    gsonVersion = "2.8.0"
+
+    app = [
+            okhttp                       : "com.squareup.okhttp3:okhttp:${okhttpVersion}",
+            recyclerView                 : "com.android.support:recyclerview-v7:${supportV7Version}",
+            appcompat                    : "com.android.support:appcompat-v7:${supportV7Version}",
+            constraintLayout             : "com.android.support.constraint:constraint-layout:${constraintLayoutVersion}",
+            gson                         : "com.google.code.gson:gson:${gsonVersion}",
+    ]
+
+}
