@@ -1,10 +1,11 @@
-package com.xgc.qrcode.demo;
+package com.xgc.qrcode.demo.camera;
 
 import android.content.Context;
 import android.graphics.PixelFormat;
 import android.graphics.Point;
 import android.hardware.Camera;
 import android.os.Handler;
+import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
 import android.view.SurfaceHolder;
@@ -25,6 +26,7 @@ public class CameraManager {
     private Context context;
     private Camera camera;
     private AutoFocusCallback autoFocusCallback;//自动对焦回调
+    private Camera.PreviewCallback previewCallback;//
     private Handler handler = new Handler(new Handler.Callback() {
         @Override
         public boolean handleMessage(Message msg) {
@@ -44,7 +46,33 @@ public class CameraManager {
         context = c;
     }
 
-    public void create(SurfaceHolder holder) {
+    public Point getPreviewSize() {
+        if (camera == null) {
+            return null;
+        }
+
+        Camera.Size size = camera.getParameters().getPreviewSize();
+        return new Point(size.width, size.height);
+    }
+
+    public void startPreview(){
+        if (camera != null) {
+            camera.startPreview();
+            autoFocus();
+        }
+    }
+
+    public void stopPreview(){
+        if (camera != null) {
+            camera.stopPreview();
+        }
+    }
+
+    public void setPreviewCallback(Camera.PreviewCallback previewCallback) {
+        this.previewCallback = previewCallback;
+    }
+
+    public void surfaceCreated(SurfaceHolder holder) {
         camera = Camera.open();
 
         if (camera != null) {
@@ -53,7 +81,7 @@ public class CameraManager {
         autoFocusCallback = new AutoFocusCallback();
     }
 
-    public void change(SurfaceHolder holder, int width, int height) {
+    public void surfaceChanged(SurfaceHolder holder, int width, int height) {
         if (camera == null) {
             return;
         }
@@ -63,7 +91,11 @@ public class CameraManager {
             updateCameraParameters(width, height);
             camera.setPreviewDisplay(holder);
             camera.startPreview();
+            if (previewCallback != null) {
+                camera.setPreviewCallback(previewCallback);
+            }
             autoFocus();
+
         } catch (IOException e) {
             e.printStackTrace();
             if (camera != null) {
@@ -73,7 +105,19 @@ public class CameraManager {
         }
     }
 
-    public void destroyed() {
+    public void surfaceDestroyed(){
+        if (handler != null) {
+            handler.removeCallbacksAndMessages(null);
+        }
+
+        if (camera != null) {
+            camera.cancelAutoFocus();
+            camera.stopPreview();
+            camera.setPreviewCallback(null);
+        }
+    }
+
+    public void destroy() {
         if (handler != null) {
             handler.removeCallbacksAndMessages(null);
             handler = null;
@@ -82,7 +126,9 @@ public class CameraManager {
         if (camera != null) {
             camera.cancelAutoFocus();
             camera.stopPreview();
+            camera.setPreviewCallback(null);
             camera.release();
+            camera = null;
         }
     }
 
@@ -90,7 +136,7 @@ public class CameraManager {
      * 自动对焦
      */
     private void autoFocus() {
-        if(camera != null) {
+        if (camera != null) {
             camera.autoFocus(autoFocusCallback);
         }
     }
@@ -112,7 +158,6 @@ public class CameraManager {
             p.setGpsTimestamp(time);
 
             //设置预览画面分辨率
-            //Camera.Size previewSize = findBestPreviewSize(p, surfaceWidth, surfaceHeight);
             Point previewSize = findBestSize(p, new Point(surfaceWidth, surfaceHeight));
             p.setPreviewSize(previewSize.x, previewSize.y);
             //设置拍照图片分辨率
@@ -303,7 +348,6 @@ public class CameraManager {
         return bestSize;
     }
 
-
     final class AutoFocusCallback implements Camera.AutoFocusCallback {
         private static final long AUTOFOCUS_INTERVAL_MS = 1000L;
 
@@ -322,76 +366,10 @@ public class CameraManager {
 
     }
 
+    private boolean isUIThread() {
+        return Thread.currentThread() == Looper.getMainLooper().getThread();
 
-    private Camera.Size findBestPreviewSize(Camera.Parameters parameters, int surfaceWidth, int surfaceHeight) {
-        //将camera支持的预览分辨率降序排列
-        List<Camera.Size> sizes = parameters.getSupportedPreviewSizes();
-        List<Camera.Size> supportedPreviewSizes = null;
-        if (sizes == null) {
-            supportedPreviewSizes = new ArrayList<Camera.Size>();
-        } else {
-            supportedPreviewSizes = new ArrayList<Camera.Size>(sizes);
-        }
-        Collections.sort(supportedPreviewSizes, new Comparator<Camera.Size>() {
-            @Override
-            public int compare(Camera.Size a, Camera.Size b) {
-                int aPixels = a.height * a.width;
-                int bPixels = b.height * b.width;
-                if (bPixels < aPixels) {
-                    return -1;
-                }
-                if (bPixels > aPixels) {
-                    return 1;
-                }
-                return 0;
-            }
-        });
-
-        //打印支持的所有预览分辨率
-        StringBuilder previewSizesString = new StringBuilder();
-        for (Camera.Size supportedPreviewSize : supportedPreviewSizes) {
-            previewSizesString.append(supportedPreviewSize.width).append('x').append(supportedPreviewSize.height).append(' ');
-        }
-        Log.d(TAG, "Supported preview sizes: " + previewSizesString);
-
-        //从supportedPreviewSizes中找到比率最接近targetRatio
-        Camera.Size bestSize = null;
-        ;
-        float diffRatio = Float.POSITIVE_INFINITY;
-        float targetRatio = (float) surfaceWidth / (float) surfaceHeight;
-        Log.d(TAG, "surface size : " + surfaceHeight + "x" + surfaceWidth + " " + targetRatio);
-        for (Camera.Size supportedPreviewSize : supportedPreviewSizes) {
-            //因为设置的为竖屏，所以supportedPreviewSizes中的宽为手机屏幕的高,supportedPreviewSizes中的高为手机屏幕的宽
-            int realWidth = supportedPreviewSize.height;
-            int realHeight = supportedPreviewSize.width;
-            int pixels = realWidth * realHeight;
-            //过滤太小分辨率的
-            if (pixels < MIN_PREVIEW_PIXELS) {
-                continue;
-            }
-
-            if (realWidth == surfaceWidth && realHeight == surfaceHeight) {
-                return supportedPreviewSize;
-            }
-
-            float previewRatio = (float) realWidth / (float) realHeight;
-            float newDiff = Math.abs(targetRatio - previewRatio);
-            Log.d(TAG, realHeight + "x" + realWidth + " " + previewRatio);
-            if (newDiff < diffRatio) {
-                bestSize = supportedPreviewSize;
-                diffRatio = newDiff;
-            }
-        }
-
-        if (bestSize == null) {
-            bestSize = camera.new Size((int) getScreenH(), (int) getScreenW());
-        }
-
-        Log.d(TAG, "best preview sizes: " + bestSize.width + "x" + bestSize.height);
-
-        return bestSize;
     }
-
 
     private float getScreenW() {
         return context.getResources().getDisplayMetrics().widthPixels;

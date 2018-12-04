@@ -22,4 +22,5 @@ dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
     implementation appDependence.appcompat
     implementation appDependence.constraintLayout
+    implementation appDependence.commonsIO
 }
