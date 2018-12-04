@@ -124,7 +124,8 @@ public class QBarAIDecoder {
             }
 
             //对图片进行灰度处理并且裁剪获得扫描区域
-            int result = QbarNative.gray_rotate_crop_sub(tempOutBytes, outImgSize, data, size.x, size.y, rect.left, rect.top, width, height, 90, 0);
+            int result = QbarNative.gray_rotate_crop_sub(tempOutBytes, outImgSize, data, size.x, size.y,
+                    rect.left, rect.top, (rect.right - rect.left), (rect.bottom - rect.top), 90, 0);
             //不进行裁剪
             //int decodeResult = QbarNative.gray_rotate_crop_sub(tempOutBytes, outImgSize, data, size.x, size.y, 0, 0, size.x, size.y, 90, 0);
             if (result != 0) {

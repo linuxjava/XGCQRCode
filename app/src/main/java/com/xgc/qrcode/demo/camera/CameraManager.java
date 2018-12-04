@@ -88,6 +88,11 @@ public class CameraManager {
 
         //摄像头画面显示在Surface上
         try {
+            /**
+             * 从其它页面返回扫描页面时surfaceChanged可能被调用多次,如果已开启预览时，更新camera的Parameters就会奔溃，所以在更新
+             * Parameters前先调用stopPreview
+             */
+            camera.stopPreview();
             updateCameraParameters(width, height);
             camera.setPreviewDisplay(holder);
             camera.startPreview();
@@ -358,7 +363,7 @@ public class CameraManager {
          * @param camera
          */
         public void onAutoFocus(boolean success, Camera camera) {
-            Log.i(TAG, "onAutoFocus success = " + success);
+            //Log.i(TAG, "onAutoFocus success = " + success);
             if (handler != null) {
                 handler.sendEmptyMessageDelayed(MSG_AUTO_FOCUS, AUTOFOCUS_INTERVAL_MS);
             }

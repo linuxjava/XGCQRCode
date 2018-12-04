@@ -18,7 +18,7 @@ ext {
             appcompat                    : "com.android.support:appcompat-v7:${supportV7Version}",
             constraintLayout             : "com.android.support.constraint:constraint-layout:${constraintLayoutVersion}",
             gson                         : "com.google.code.gson:gson:${gsonVersion}",
-            commonsIO                         : "com.google.code.gson:gson:${commonsIO}",
+            commonsIO                    : "commons-io:commons-io:${commonsIO}",
     ]
 
 }
