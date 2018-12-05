@@ -191,11 +191,19 @@ public class ScanActivity extends AppCompatActivity implements SurfaceHolder.Cal
      * @param data
      */
     @Override
-    public void decodeResult(String data) {
-        Log.d(TAG, data);
-        Toast.makeText(mContext, data, Toast.LENGTH_SHORT).show();
-        //延迟10s后再开启预览扫描，模拟业务
-        handler.sendEmptyMessageDelayed(0, 3000);
+    public void decodeResult(int code, final String data) {
+        Log.d(TAG, code + "::" + data);
+        if(code == DecodeCallback.CODE_SUCC) {
+            Toast.makeText(mContext, data, Toast.LENGTH_SHORT).show();
+            //延迟10s后再开启预览扫描，模拟业务
+            handler.sendEmptyMessageDelayed(0, 3000);
+        }else {
+            if(code == DecodeCallback.CODE_NO_QRCODE){
+                Toast.makeText(mContext, "未检测到二维码", Toast.LENGTH_SHORT).show();
+            }else {
+                Toast.makeText(mContext, "解码失败", Toast.LENGTH_SHORT).show();
+            }
+        }
     }
 
     /**

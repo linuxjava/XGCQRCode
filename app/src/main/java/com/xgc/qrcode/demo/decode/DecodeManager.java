@@ -31,6 +31,8 @@ public class DecodeManager {
     private Handler mDecodeHandler;//解码子线程handler
     private DecodeCallback mDecodeCallback;
     private int mStatus = STATUS_PREVIEW;
+    private int mScanSource;
+    private Object mLock = new Object();
 
     public DecodeManager(Context context) {
         mContext = context;
@@ -41,7 +43,7 @@ public class DecodeManager {
         handlerThread.start();
         mDecodeHandler = new Handler(handlerThread.getLooper()) {
             @Override
-            public void handleMessage(Message msg) {
+            public void handleMessage(final Message msg) {
                 switch (msg.what) {
                     case MSG_DECODE_SCAN:
                         doScanDecode(msg);
@@ -50,9 +52,23 @@ public class DecodeManager {
                         doFileDecode(msg);
                         break;
                     case MSG_DECODE_FAIL:
+//                        Log.d(TAG, "MSG_DECODE_FAIL = " + mScanSource + ":" + msg.arg1);
+//                        final int code = msg.arg1;
+//                        if (mScanSource == QbarNative.SCAN_FILE) {//只有图片解码时才有错误回调
+//                            if (mDecodeCallback != null && mContext != null) {
+//                                ((Activity) mContext).runOnUiThread(new Runnable() {
+//                                    @Override
+//                                    public void run() {
+//                                        mDecodeCallback.decodeResult(code, "");
+//                                    }
+//                                });
+//                            }
+//                        }
                         //从解码状态转换为预览状态
-                        if(mStatus == STATUS_DECODEING){
-                            mStatus = STATUS_PREVIEW;
+                        synchronized (mLock) {
+                            if (mStatus == STATUS_DECODEING) {
+                                mStatus = STATUS_PREVIEW;
+                            }
                         }
                         break;
                 }
@@ -69,10 +85,12 @@ public class DecodeManager {
      * 解码成功后停止解码,业务处理完后需要调用该方法继续开启解码
      */
     public void enableDecode(boolean enable) {
-        if(enable) {
-            mStatus = STATUS_PREVIEW;
-        }else {
-            mStatus = STATUS_NONE;
+        synchronized (mLock) {
+            if (enable) {
+                mStatus = STATUS_PREVIEW;
+            } else {
+                mStatus = STATUS_NONE;
+            }
         }
     }
 
@@ -85,10 +103,12 @@ public class DecodeManager {
      * @param scanRect
      */
     public void sendScanDecode(byte[] data, int previewWidth, int previewHeight, Rect scanRect) {
-        if(mStatus == STATUS_PREVIEW){
-            mStatus = STATUS_DECODEING;
-        }else {
-            return;
+        synchronized (mLock) {
+            if (mStatus == STATUS_PREVIEW) {
+                mStatus = STATUS_DECODEING;
+            } else {
+                return;
+            }
         }
 
         if (data == null || data.length <= 0) {
@@ -112,10 +132,12 @@ public class DecodeManager {
      * @param filePath
      */
     public void sendFileDecode(String filePath) {
-        if(mStatus == STATUS_PREVIEW){
-            mStatus = STATUS_DECODEING;
-        }else {
-            return;
+        synchronized (mLock) {
+            if (mStatus == STATUS_PREVIEW) {
+                mStatus = STATUS_DECODEING;
+            } else {
+                return;
+            }
         }
 
         if (TextUtils.isEmpty(filePath)) {
@@ -134,6 +156,7 @@ public class DecodeManager {
     }
 
     private void doScanDecode(Message msg) {
+        mScanSource = QbarNative.SCAN_VIDEO;
         int previewWidth = msg.getData().getInt("previewWidth");
         int previewHeight = msg.getData().getInt("previewHeight");
         Rect scanRect = msg.getData().getParcelable("scanRect");
@@ -149,6 +172,7 @@ public class DecodeManager {
         options.inSampleSize = 2;
         Bitmap bitmap = BitmapFactory.decodeFile(filePath, options);
         if (bitmap != null) {
+            mScanSource = QbarNative.SCAN_FILE;
             int[] pixels = new int[bitmap.getWidth() * bitmap.getHeight()];
             bitmap.getPixels(pixels, 0, bitmap.getWidth(), 0, 0, bitmap.getWidth(), bitmap.getHeight());
 
@@ -165,17 +189,35 @@ public class DecodeManager {
          * @param result
          */
         @Override
-        public void afterDecode(final String result) {
-            if (TextUtils.isEmpty(result)) {
-                //解码失败,延迟发消息，避免频繁地灰度、裁剪、解码操作
-                Message message = mDecodeHandler.obtainMessage(MSG_DECODE_FAIL);
-                mDecodeHandler.sendMessageDelayed(message, 200);
+        public void afterDecode(final int code, final String result) {
+            if (code != DecodeCallback.CODE_SUCC) {
+                if (mScanSource == QbarNative.SCAN_FILE) {//只有图片解码时才有错误回调
+                    //从解码状态转换为预览状态
+                    synchronized (mLock) {
+                        if (mStatus == STATUS_DECODEING) {
+                            mStatus = STATUS_PREVIEW;
+                        }
+                    }
+                    if (mDecodeCallback != null && mContext != null) {
+                        ((Activity) mContext).runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                mDecodeCallback.decodeResult(code, "");
+                            }
+                        });
+                    }
+                } else {
+                    //解码失败,延迟发消息，避免频繁地灰度、裁剪、解码操作
+                    Message message = mDecodeHandler.obtainMessage(MSG_DECODE_FAIL);
+                    message.arg1 = code;
+                    mDecodeHandler.sendMessageDelayed(message, 200);
+                }
             } else {
                 if (mDecodeCallback != null && mContext != null) {
                     ((Activity) mContext).runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
-                            mDecodeCallback.decodeResult(result);
+                            mDecodeCallback.decodeResult(code, result);
                         }
                     });
                 }

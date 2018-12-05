@@ -55,7 +55,7 @@
             <RelativeLayout
                 android:layout_width="fill_parent"
                 android:layout_height="fill_parent"
-                android:layout_weight="6"
+                android:layout_weight="5"
                 android:background="@color/colorMask" />
 
             <LinearLayout
@@ -94,7 +94,7 @@
             <RelativeLayout
                 android:layout_width="fill_parent"
                 android:layout_height="fill_parent"
-                android:layout_weight="5"
+                android:layout_weight="4"
                 android:background="@color/colorMask" />
         </LinearLayout>
     </RelativeLayout>

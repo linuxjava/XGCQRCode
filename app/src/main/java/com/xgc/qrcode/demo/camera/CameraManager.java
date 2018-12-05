@@ -17,7 +17,13 @@ import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 
-
+/**
+ * camera使用注意事项：
+ * 1.autoFocus方法需要在startPreview后才可以调用；如果在stopPreview后调用autoFocus的调用则会产生如下错误：
+ * java.lang.RuntimeException: autoFocus failed
+ * 2.setParameters方法只能在stopPreview后调用，如果已startPreview调用setParameters会产生如下错误信息：
+ * java.lang.RuntimeException: setParameters failed
+ */
 public class CameraManager {
     private static final String TAG = "CameraManager";
     private static final int MIN_PREVIEW_PIXELS = 470 * 320; // normal screen
@@ -27,6 +33,7 @@ public class CameraManager {
     private Camera camera;
     private AutoFocusCallback autoFocusCallback;//自动对焦回调
     private Camera.PreviewCallback previewCallback;//
+    private boolean isStopPreview = true;//是否停止预览
     private Handler handler = new Handler(new Handler.Callback() {
         @Override
         public boolean handleMessage(Message msg) {
@@ -55,15 +62,19 @@ public class CameraManager {
         return new Point(size.width, size.height);
     }
 
-    public void startPreview(){
+    public void startPreview() {
         if (camera != null) {
+            Log.d(TAG, "startPreview");
+            isStopPreview = false;
             camera.startPreview();
             autoFocus();
         }
     }
 
-    public void stopPreview(){
+    public void stopPreview() {
         if (camera != null) {
+            Log.d(TAG, "stopPreview");
+            isStopPreview = true;
             camera.stopPreview();
         }
     }
@@ -90,17 +101,16 @@ public class CameraManager {
         try {
             /**
              * 从其它页面返回扫描页面时surfaceChanged可能被调用多次,如果已开启预览时，更新camera的Parameters就会奔溃，所以在更新
-             * Parameters前先调用stopPreview
+             * Parameters前先调用stopPreview。奔溃错误信息如下：
+             * java.lang.RuntimeException: setParameters failed
              */
-            camera.stopPreview();
+            stopPreview();
             updateCameraParameters(width, height);
             camera.setPreviewDisplay(holder);
-            camera.startPreview();
             if (previewCallback != null) {
                 camera.setPreviewCallback(previewCallback);
             }
-            autoFocus();
-
+            startPreview();
         } catch (IOException e) {
             e.printStackTrace();
             if (camera != null) {
@@ -110,14 +120,14 @@ public class CameraManager {
         }
     }
 
-    public void surfaceDestroyed(){
+    public void surfaceDestroyed() {
         if (handler != null) {
             handler.removeCallbacksAndMessages(null);
         }
 
         if (camera != null) {
             camera.cancelAutoFocus();
-            camera.stopPreview();
+            stopPreview();
             camera.setPreviewCallback(null);
         }
     }
@@ -130,7 +140,7 @@ public class CameraManager {
 
         if (camera != null) {
             camera.cancelAutoFocus();
-            camera.stopPreview();
+            stopPreview();
             camera.setPreviewCallback(null);
             camera.release();
             camera = null;
@@ -141,7 +151,12 @@ public class CameraManager {
      * 自动对焦
      */
     private void autoFocus() {
-        if (camera != null) {
+        if (camera != null && !isStopPreview) {
+            /**
+             * autoFocus的调用需要是startPreview，否则会产生如下错误：
+             * java.lang.RuntimeException: autoFocus failed
+             */
+            Log.d(TAG, "autoFocus");
             camera.autoFocus(autoFocusCallback);
         }
     }

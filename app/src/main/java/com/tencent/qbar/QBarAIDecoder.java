@@ -5,7 +5,8 @@ import android.graphics.Point;
 import android.graphics.Rect;
 import android.util.Log;
 
-import java.util.ArrayList;
+import com.xgc.qrcode.demo.decode.DecodeCallback;
+
 import java.util.List;
 
 
@@ -24,13 +25,14 @@ public class QBarAIDecoder {
     private boolean inited;
     private static boolean aiModelCopyed;
 
+
     private Object syncObject = new Object();
 
     private byte[] tempOutBytes;
     private byte[] tempGrayData;
 
     public interface DecodeCallBack {
-        void afterDecode(String result);
+        void afterDecode(int code, String result);
     }
 
     private DecodeCallBack callBack;
@@ -46,7 +48,6 @@ public class QBarAIDecoder {
             return;
         }
         try {
-
             final String detect_model_bin_path = context.getFilesDir().getAbsolutePath() + "/" + AIQBAR_DATA_DIR + "/qbar/detect_model.bin";
             final String detect_model_param_path = context.getFilesDir().getAbsolutePath() + "/" + AIQBAR_DATA_DIR + "/qbar/detect_model.param";
             final String srnet_bin_path = context.getFilesDir().getAbsolutePath() + "/" + AIQBAR_DATA_DIR + "/qbar/srnet.bin";
@@ -94,7 +95,7 @@ public class QBarAIDecoder {
     public void decodeFrame(byte[] data, Point size, Rect rect) {
         if (data == null || data.length <= 0) {
             Log.w(TAG, "prepareGrayData , data is null");
-            callBack.afterDecode(null);
+            callBack.afterDecode(DecodeCallback.CODE_DATA_NULL, null);
             return;
         }
 
@@ -130,7 +131,7 @@ public class QBarAIDecoder {
             //int decodeResult = QbarNative.gray_rotate_crop_sub(tempOutBytes, outImgSize, data, size.x, size.y, 0, 0, size.x, size.y, 90, 0);
             if (result != 0) {
                 Log.e(TAG, "rotate decodeResult " + result);
-                callBack.afterDecode(null);
+                callBack.afterDecode(DecodeCallback.CODE_GRAY_CROP_ERROR, null);
                 return;
             }
 
@@ -151,7 +152,7 @@ public class QBarAIDecoder {
         Log.i(TAG, String.format("decode, size %s", size.toString()));
         if (pixels == null || pixels.length <= 0) {
             Log.w(TAG, "prepareGrayData , data is null");
-            callBack.afterDecode(null);
+            callBack.afterDecode(DecodeCallback.CODE_DATA_NULL, null);
             return;
         }
 
@@ -160,7 +161,7 @@ public class QBarAIDecoder {
         int result = QbarNative.TransBytes(pixels, data, size.x, size.y);
         if (result != 0) {
             Log.e(TAG, "rotate decodeResult " + result);
-            callBack.afterDecode(null);
+            callBack.afterDecode(DecodeCallback.CODE_GRAY_CROP_ERROR, null);
             return;
         }
 
@@ -173,7 +174,7 @@ public class QBarAIDecoder {
         int result = qbarNative.scanImage(data, width, height, QbarNative.GRAY);//识别到二维码数量
         if (result < 0) {
             Log.e(TAG, "scanImage decodeResult " + result);
-            callBack.afterDecode(null);
+            callBack.afterDecode(DecodeCallback.CODE_NO_QRCODE, null);
             return;
         }
 
@@ -187,13 +188,13 @@ public class QBarAIDecoder {
 
         //方式二：获取扫码结果
         List<QbarNative.QBarResult> results = qbarNative.GetResults(1);
-        if(results == null || results.size() == 0){
+        if (results == null || results.size() == 0) {
             Log.e(TAG, "GetResults " + result);
-            callBack.afterDecode(null);
+            callBack.afterDecode(DecodeCallback.CODE_GET_QRCODE_ERROR, null);
             return;
         }
 
-        callBack.afterDecode(results.get(0).data);
+        callBack.afterDecode(DecodeCallback.CODE_SUCC, results.get(0).data);
 
 //        List<QbarNative.QBarResult> results = new ArrayList<>();
 //        List<QbarNative.QBarPoint> points = new ArrayList<>();
