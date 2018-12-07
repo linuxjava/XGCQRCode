@@ -129,22 +129,13 @@ public class CameraManager {
             camera.cancelAutoFocus();
             stopPreview();
             camera.setPreviewCallback(null);
+            camera.release();
+            camera = null;
         }
     }
 
     public void destroy() {
-        if (handler != null) {
-            handler.removeCallbacksAndMessages(null);
-            handler = null;
-        }
-
-        if (camera != null) {
-            camera.cancelAutoFocus();
-            stopPreview();
-            camera.setPreviewCallback(null);
-            camera.release();
-            camera = null;
-        }
+        surfaceDestroyed();
     }
 
     /**

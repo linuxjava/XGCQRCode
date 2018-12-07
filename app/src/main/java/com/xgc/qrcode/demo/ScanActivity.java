@@ -47,19 +47,20 @@ import com.xgc.qrcode.demo.decode.DecodeManager;
  * <p>
  * 4、程序切到前台
  * Activity 调用顺序: onRestart()->onStart()->onResume()
- * SurfaceView 调用顺序: surfaceChanged()->surfaceCreated()
+ * SurfaceView 调用顺序: surfaceCreated()->surfaceChanged()
  * <p>
  * 5、屏幕锁定（挂断键或锁定屏幕）
  * Activity 调用顺序: onPause()
- * SurfaceView 什么方法都不调用
+ * 坚果Pro2s SurfaceView 什么方法都不调用
+ * 小米手机上会调用surfaceDestroyed
  * <p>
  * 6、屏幕解锁
  * Activity 调用顺序: onResume()
- * SurfaceView 什么方法都不调用
+ * 坚果Pro2s SurfaceView 什么方法都不调用
+ * 小米MIX2手机上会调用surfaceCreated()->surfaceChanged()
  */
 public class ScanActivity extends AppCompatActivity implements SurfaceHolder.Callback, DecodeCallback, Camera.PreviewCallback {
     public static final String TAG = "XGCQRCode";
-    private static final int SIZE = 300;
     private Context mContext;
     private SurfaceView mSurfaceView;
     private CameraManager mCameraManager;
@@ -193,14 +194,14 @@ public class ScanActivity extends AppCompatActivity implements SurfaceHolder.Cal
     @Override
     public void decodeResult(int code, final String data) {
         Log.d(TAG, code + "::" + data);
-        if(code == DecodeCallback.CODE_SUCC) {
+        if (code == DecodeCallback.CODE_SUCC) {
             Toast.makeText(mContext, data, Toast.LENGTH_SHORT).show();
             //延迟10s后再开启预览扫描，模拟业务
             handler.sendEmptyMessageDelayed(0, 3000);
-        }else {
-            if(code == DecodeCallback.CODE_NO_QRCODE){
+        } else {
+            if (code == DecodeCallback.CODE_NO_QRCODE) {
                 Toast.makeText(mContext, "未检测到二维码", Toast.LENGTH_SHORT).show();
-            }else {
+            } else {
                 Toast.makeText(mContext, "解码失败", Toast.LENGTH_SHORT).show();
             }
         }
@@ -215,7 +216,7 @@ public class ScanActivity extends AppCompatActivity implements SurfaceHolder.Cal
     @Override
     public void onPreviewFrame(byte[] data, Camera camera) {
         if (mScanRect != null) {
-            if(mPreviewScanImageRect == null){
+            if (mPreviewScanImageRect == null) {
                 mPreviewScanImageRect = new Rect();
                 mPreviewPoint = mCameraManager.getPreviewSize();
 
@@ -246,6 +247,7 @@ public class ScanActivity extends AppCompatActivity implements SurfaceHolder.Cal
         albumIntent.setDataAndType(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, "image/*");
         startActivityForResult(albumIntent, 0);
     }
+
     public void onBack(View view) {
         finish();
     }

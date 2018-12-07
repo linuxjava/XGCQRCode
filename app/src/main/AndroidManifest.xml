@@ -27,6 +27,11 @@
         <activity
             android:name=".ScanActivity"
             android:screenOrientation="portrait" />
+
+        <meta-data
+            android:name="android.max_aspect"
+            android:value="2.1" />
     </application>
+
 
 </manifest>
